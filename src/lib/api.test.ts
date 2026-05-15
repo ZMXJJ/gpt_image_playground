@@ -166,6 +166,10 @@ describe('callImageApi', () => {
     const result = await callImageApi({
       settings: {
         ...DEFAULT_SETTINGS,
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'test-key',
+        model: 'model',
+        apiProxy: true,
         customProviders: [{
           id: 'custom-sync',
           name: 'Custom Sync',
@@ -224,6 +228,10 @@ describe('callImageApi', () => {
     const result = await callImageApi({
       settings: {
         ...DEFAULT_SETTINGS,
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'test-key',
+        model: 'model',
+        apiProxy: true,
         customProviders: [{
           id: 'custom-async-proxy',
           name: 'Custom Async Proxy',
