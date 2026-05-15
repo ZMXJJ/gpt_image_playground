@@ -7,7 +7,7 @@
     "dev": "vite",
     "mock:api": "node scripts/mock-image-api.mjs",
     "build": "tsc -b && vite build",
-    "deploy:cf": "npm run build && wrangler deploy",
+    "deploy:cf": "npm run build && wrangler deploy --keep-vars",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -89,7 +89,7 @@
 ### 🔌 多配置与服务商增强
 - **多配置管理**：支持创建并保存多个 API 配置（包含服务商、API Key、模型等），按需快速切换；支持一键复制当前配置到列表底部，并通过拖拽对配置列表与服务商列表进行自定义排序。
 - **多服务商接入**：内置 OpenAI 兼容接口（含 `Images API` 和 `Responses API`）、fal.ai（支持队列），并支持通过 JSON 导入自定义 HTTP 服务商配置（兼容同步/异步任务）。
-- **API 代理**：OpenAI 兼容接口与 fal.ai 均可配置自定义代理。其中 OpenAI 兼容接口可开启同源 `/api-proxy/` 代理，交由 Docker 或本地开发环境转发至真实 API，绕开浏览器 CORS 限制。
+- **API 代理**：OpenAI 兼容接口与自定义 HTTP 服务商可开启同源 `/api-proxy/` 代理，交由 Cloudflare Workers、Docker 或本地开发环境转发至真实 API，绕开浏览器 CORS 限制；fal.ai 仍使用自身 SDK 代理配置。
 - **Codex CLI 兼容模式**：对上游为 Codex CLI 的 API，开启后应用 Codex CLI 实际支持的参数，并将多图生成拆分为并发单图。
 - **提示词防改写**：Responses API 会始终在请求文本前加入强制指令防止提示词被改写；开启 Codex CLI 模式后，Images API 也会获得同等保护。
 - **智能诊断提示**：当检测到接口异常改写行为或缺少常规参数时，自动提示开启相应的兼容模式。
@@ -140,9 +140,9 @@ npx wrangler login
 npm run deploy:cf
 ```
 
-部署脚本会先执行 `npm run build`，再通过 `wrangler deploy` 上传 `dist/` 目录。
+部署脚本会先执行 `npm run build`，再通过 `wrangler deploy --keep-vars` 上传 Worker 和 `dist/` 目录，保留你在 Cloudflare 控制台配置的运行时变量。
 
-**配置默认 API URL**：Cloudflare Workers 的环境变量不会自动改写已经构建好的静态文件。若需预设默认 API 地址，请在构建前设置 `VITE_DEFAULT_API_URL` 后再部署。
+**配置默认 API URL**：在 Cloudflare Workers 的 **Settings -> Variables** 中设置 `DEFAULT_API_URL`，Worker 会在返回页面时注入运行时配置；也可以在构建前设置 `VITE_DEFAULT_API_URL` 后再部署。
 
 ```bash
 VITE_DEFAULT_API_URL=https://api.openai.com/v1 npm run deploy:cf
@@ -153,6 +153,14 @@ PowerShell 示例：
 ```powershell
 $env:VITE_DEFAULT_API_URL="https://api.openai.com/v1"; npm run deploy:cf
 ```
+
+**开启同源 API 代理**：在 Cloudflare Workers 的 **Settings -> Variables** 中设置：
+
+- `ENABLE_API_PROXY=true`
+- `API_PROXY_URL=https://api.openai.com/v1`（或你的第三方 API Base URL，建议包含 `/v1`）
+- `LOCK_API_PROXY=true`（可选，强制前端始终走代理）
+
+> ⚠️ **安全警告**：开启 API 代理后，访问你 Worker 的用户都可以通过该 Worker 请求 `API_PROXY_URL` 下的接口路径。建议仅用于自用部署，或配合 Cloudflare Access、WAF/IP 白名单等访问控制。
 
 </details>
 
@@ -165,7 +173,7 @@ $env:VITE_DEFAULT_API_URL="https://api.openai.com/v1"; npm run deploy:cf
 
 - `DEFAULT_API_URL`：设置页面上默认显示的 API 地址。
 - `API_PROXY_URL`：配置内置代理实际转发到的目标 API 地址（仅开启代理时有效）。
-- `ENABLE_API_PROXY`：设为 `true` 开启容器内置 Nginx 同源代理，用于解决浏览器跨域（CORS）限制。开启后，前端 **API 代理** 开关默认开启，浏览器会请求同源的 `/api-proxy/`，再由 Nginx 转发至 `API_PROXY_URL`；用户仍可在设置中手动关闭。
+- `ENABLE_API_PROXY`：设为 `true` 开启容器内置 Nginx 同源代理，用于解决浏览器跨域（CORS）限制。开启后，前端 **API 代理** 开关默认开启，浏览器会请求同源的 `/api-proxy/`，再由 Nginx 转发至 `API_PROXY_URL`；OpenAI 兼容接口和自定义 HTTP 服务商均可使用，用户仍可在设置中手动关闭。
 - `LOCK_API_PROXY`：设为 `true` 时，在 `ENABLE_API_PROXY=true` 的前提下将前端 **API 代理** 开关强制锁定为开启，用户无法关闭。
 - `HOST` / `PORT`：指定容器内 Nginx 监听的地址和端口（默认 `0.0.0.0:80`）。
 
@@ -225,7 +233,7 @@ npm run dev
 cp dev-proxy.config.example.json dev-proxy.config.json
 ```
 
-修改 `dev-proxy.config.json`，将 `target` 设置为真实的图片接口地址。重启开发服务器后，在页面设置中开启 **API 代理** 即可（请求将被转发如 `http://localhost:5173/api-proxy/... -> target/...`）。此功能仅在 `npm run dev` 阶段生效，不会影响打包产物。
+修改 `dev-proxy.config.json`，将 `target` 设置为真实的图片接口地址。重启开发服务器后，在页面设置中开启 **API 代理** 即可（请求将被转发如 `http://localhost:5173/api-proxy/... -> target/...`）。OpenAI 兼容接口和自定义 HTTP 服务商均可使用该代理；此功能仅在 `npm run dev` 阶段生效，不会影响打包产物。
 
 **3. 本地故障模拟 API (可选)**
 
