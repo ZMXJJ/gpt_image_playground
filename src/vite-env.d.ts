@@ -14,3 +14,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+interface Window {
+  readonly __GPT_IMAGE_RUNTIME_ENV__?: Partial<Record<keyof ImportMetaEnv, string>>
+}
