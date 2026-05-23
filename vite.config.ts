@@ -17,8 +17,8 @@ function loadDevProxyConfig() {
   }
 }
 
-export default defineConfig(({ command }) => {
-  const devProxyConfig = command === 'serve' ? loadDevProxyConfig() : null
+export default defineConfig(({ command, mode }) => {
+  const devProxyConfig = command === 'serve' && mode !== 'test' ? loadDevProxyConfig() : null
 
   return {
     plugins: [react()],
@@ -44,6 +44,13 @@ export default defineConfig(({ command }) => {
               },
             }
           : undefined,
+    },
+    test: {
+      env: {
+        VITE_API_PROXY_AVAILABLE: '',
+        VITE_API_PROXY_LOCKED: '',
+        VITE_DEFAULT_API_URL: '',
+      },
     },
   }
 })

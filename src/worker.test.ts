@@ -41,19 +41,87 @@ describe('worker API proxy', () => {
     expect(proxiedRequest.url).toBe('https://api.example.com/v1/images/generations')
     expect(proxiedRequest.method).toBe('POST')
     expect(proxiedRequest.headers.get('Authorization')).toBe('Bearer test-key')
-    expect(proxiedRequest.headers.has('Origin')).toBe(false)
   })
 
-  it('rejects absolute proxy paths so the Worker cannot become an open proxy', async () => {
+  it('rejects disallowed proxy paths', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
 
-    const response = await worker.fetch(new Request('https://app.example.com/api-proxy/https://evil.example.com'), createEnv({
+    const response = await worker.fetch(new Request('https://app.example.com/api-proxy/custom/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: 'test' }),
+    }), createEnv({
       ENABLE_API_PROXY: 'true',
       API_PROXY_URL: 'https://api.example.com/v1',
     }))
 
     expect(response.status).toBe(403)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects GET proxy requests', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    const response = await worker.fetch(new Request('https://app.example.com/api-proxy/images/generations'), createEnv({
+      ENABLE_API_PROXY: 'true',
+      API_PROXY_URL: 'https://api.example.com/v1',
+    }))
+
+    expect(response.status).toBe(405)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects absolute proxy paths so the Worker cannot become an open proxy', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    const response = await worker.fetch(new Request('https://app.example.com/api-proxy/https://evil.example.com', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: 'test' }),
+    }), createEnv({
+      ENABLE_API_PROXY: 'true',
+      API_PROXY_URL: 'https://api.example.com/v1',
+    }))
+
+    expect(response.status).toBe(403)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('streams keepalive chunks when upstream takes longer than the Cloudflare header timeout', async () => {
+    vi.useFakeTimers()
+
+    let resolveUpstream: ((response: Response) => void) | undefined
+    const upstreamPromise = new Promise<Response>((resolve) => {
+      resolveUpstream = resolve
+    })
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(upstreamPromise)
+
+    const request = new Request('https://app.example.com/api-proxy/images/generations', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer test-key',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt: 'test' }),
+    })
+
+    const responsePromise = worker.fetch(request, createEnv({
+      ENABLE_API_PROXY: 'true',
+      API_PROXY_URL: 'https://api.example.com/v1',
+    }))
+
+    await vi.advanceTimersByTimeAsync(100_000)
+    const response = await responsePromise
+    expect(response.status).toBe(200)
+
+    resolveUpstream?.(new Response(JSON.stringify({ data: [{ b64_json: 'abc' }] }), {
+      headers: { 'Content-Type': 'application/json' },
+    }))
+
+    const text = await response.text()
+    expect(text.replace(/\n/g, '')).toContain('b64_json')
+
+    vi.useRealTimers()
   })
 
   it('injects runtime proxy settings into HTML assets', async () => {

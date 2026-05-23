@@ -3,5 +3,7 @@ dist
 .git
 .gitignore
 *.md
-Dockerfile
 .dockerignore
+.env.local
+dev-proxy.config.json
+.wrangler

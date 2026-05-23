@@ -8,5 +8,11 @@
     "binding": "ASSETS",
     "run_worker_first": true,
     "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "ENABLE_API_PROXY": "true",
+    "API_PROXY_URL": "https://llm-center.ali.modelbest.cn/llm/v1",
+    "LOCK_API_PROXY": "true",
+    "DEFAULT_API_URL": "https://llm-center.ali.modelbest.cn/llm/v1"
   }
 }
