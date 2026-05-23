@@ -15,7 +15,6 @@ import ConfirmDialog from './components/ConfirmDialog'
 import Toast from './components/Toast'
 import MaskEditorModal from './components/MaskEditorModal'
 import ImageContextMenu from './components/ImageContextMenu'
-import SupportPromptModal from './components/SupportPromptModal'
 import { useGlobalClickSuppression } from './lib/clickSuppression'
 
 export default function App() {
@@ -70,7 +69,6 @@ export default function App() {
       <Lightbox />
       <SettingsModal />
       <ConfirmDialog />
-      <SupportPromptModal />
       <Toast />
       <MaskEditorModal />
       <ImageContextMenu />
