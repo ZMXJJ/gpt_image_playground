@@ -1,5 +1,5 @@
 # ---- Build stage ----
-FROM --platform=$BUILDPLATFORM node:20-alpine AS build
+FROM docker.m.daocloud.io/library/node:20-alpine AS build
 
 WORKDIR /app
 
@@ -10,13 +10,13 @@ ENV VITE_DOCKER_DEPLOYMENT=__VITE_DOCKER_DEPLOYMENT_PLACEHOLDER__
 ENV VITE_DOCKER_LEGACY_API_URL_USED=__VITE_DOCKER_LEGACY_API_URL_USED_PLACEHOLDER__
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm config set registry https://registry.npmmirror.com && npm ci
 
 COPY . .
 RUN npm run build
 
 # ---- Production stage ----
-FROM nginx:alpine
+FROM docker.m.daocloud.io/library/nginx:alpine
 
 ENV HOST=0.0.0.0
 ENV PORT=80
